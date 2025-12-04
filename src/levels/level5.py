@@ -23,7 +23,7 @@ def load_level_5(all_sprites, platforms, crystals, levers, gates, enemies, scree
     p_top_left = Platform(50, 150, type="chica")
     p_top_right = Platform(1000, 150, type="chica")
     p_bot_left = Platform(50, 500, type="chica")
-    p_bot_right = Platform(1000, 500, type="chica")
+    p_bot_right = Platform(1000, 550, type="chica")
 
     platforms.add(p_center, p_top_left, p_top_right, p_bot_left, p_bot_right)
     all_sprites.add(p_center, p_top_left, p_top_right, p_bot_left, p_bot_right)
@@ -63,7 +63,7 @@ def load_level_5(all_sprites, platforms, crystals, levers, gates, enemies, scree
     # --- BARRERA AJUSTADA ---
     # Portal y=300. Altura 150 -> Top=150.
     # Barrera y=140, Altura=160.
-    barrier_center = Barrier(540, 140, 200, 160, color=(255, 50, 50))
+    barrier_center = Barrier(540, 180, 220, 160, color=(255, 50, 50))
     barriers["center"] = barrier_center
     all_sprites.add(barrier_center)
 

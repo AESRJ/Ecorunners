@@ -21,7 +21,7 @@ def load_level_3(all_sprites, platforms, crystals, levers, gates, enemies, scree
     all_sprites.add(floor)
 
     p_lila_bridge = Platform(250, 550, type="chica") 
-    p_safe_spike = Platform(420, 270, type="chica")
+    p_safe_spike = Platform(350, 270, type="chica")
     p_blue_moving = Gate(600, 550, width=120, height=20, move_y=-350, color=(135, 206, 235), loop=True)
     p_top_left = Platform(50, 200, type="chica")
     p_top_right = Platform(900, 250, type="normal")
