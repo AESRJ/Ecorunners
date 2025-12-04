@@ -5,6 +5,7 @@ from src.player import Player
 from src.mechanics import Lever, Gate, Spike, Barrier
 
 def load_level_3(all_sprites, platforms, crystals, levers, gates, enemies, screen_height=SCREEN_HEIGHT, screen_width=SCREEN_WIDTH):
+    # Limpieza
     all_sprites.empty()
     platforms.empty()
     crystals.empty()
@@ -12,90 +13,101 @@ def load_level_3(all_sprites, platforms, crystals, levers, gates, enemies, scree
     gates.empty()
     
     hazards = [] 
-    barriers = []
+    barriers = {} 
+    specific_levers = {}
 
-    # 1. EL PISO (Nuevo)
-    # Lo agregamos como base de todo el nivel
+    # --- 1. EL PISO Y PLATAFORMAS ---
+    
+    # Suelo Base
     floor = Platform(0, screen_height - 60, type="piso", width=screen_width)
     platforms.add(floor)
     all_sprites.add(floor)
 
-    # 2. PLATAFORMAS
-    # Plataforma inicial (un escalón sobre el piso)
-    p_start = Platform(50, 550, type="normal") 
+    # Plataforma INICIO (Izquierda)
+    # La chica empieza aquí.
+    p_start = Platform(50, 500, type="normal") 
     
-    # Plataforma Lila (arriba izquierda)
-    p_lila = Platform(150, 300, type="chica")
+    # Plataforma PEQUEÑA (Lila) - Izquierda Centro
+    # Sirve para saltar desde el inicio y no caer a los pinchos.
+    p_lila_bridge = Platform(280, 450, type="chica") 
     
-    # Plataforma Violeta (arriba derecha)
-    p_violet_top = Platform(900, 200, type="normal")
+    # Plataforma MÓVIL (Azul) - Centro     # "Donde esta la chica un poco a la derecha".
+    # Funciona como ascensor: Empieza abajo (accesible desde p_lila) y sube a la zona superior.
+    # Se mueve 300px hacia arriba (move_y=-300) cuando se activa la palanca.
+    p_blue_moving = Gate(450, 450, width=120, height=20, move_y=-250)
+    p_blue_moving.image.fill((135, 206, 235)) # Azul claro
     
-    # Plataforma Azul (Móvil)
-    # Gate móvil que sirve de ascensor central
-    p_blue_moving = Gate(600, 400, width=150, height=20, move_y=-250, color=(135, 206, 235)) 
+    # Plataforma Superior Izquierda (Para la palanca 2)
+    p_top_left = Platform(50, 200, type="chica")
+    
+    # Plataforma Superior Derecha (Decorativa o para un cristal)
+    p_top_right = Platform(900, 250, type="normal")
 
-    # Plataforma final (meta)
-    p_end = Platform(1000, 550, type="normal")
-
-    platforms.add(p_start, p_lila, p_violet_top, p_end)
+    platforms.add(p_start, p_lila_bridge, p_top_left, p_top_right)
     gates.add(p_blue_moving)
-    
-    # 3. PINCHOS (Trampas de suelo)
-    # Los colocamos justo encima del piso (floor.rect.top)
-    # Cubren el área bajo la plataforma móvil para obligarte a usarla
-    spike1 = Spike(300, floor.rect.top, width=200) 
-    spike2 = Spike(550, floor.rect.top, width=200)
-    spike3 = Spike(800, floor.rect.top, width=200)
+    all_sprites.add(p_start, p_lila_bridge, p_top_left, p_top_right, p_blue_moving)
+
+    # --- 2. PINCHOS (Solo 3 en el medio) ---
+    # Justo debajo del hueco entre la plataforma lila y la móvil
+    spike1 = Spike(350, floor.rect.top, width=50)
+    spike2 = Spike(420, floor.rect.top, width=50)
+    spike3 = Spike(490, floor.rect.top, width=50)
     
     hazards.extend([spike1, spike2, spike3])
-    
-    # 4. PALANCAS
-    # Palanca 1: Abajo derecha (Mueve azul y quita barrera rosa)
-    lev_bottom_right = Lever(650, 600) 
-    # Plataforma pequeña para sostener la palanca entre los pinchos
-    p_lev1 = Platform(630, 600, type="chica") 
-    platforms.add(p_lev1)
-    
-    # Palanca 2: Arriba izquierda (Dentro de la caja rosa)
-    lev_top_left = Lever(170, p_lila.rect.top)
-
-    levers.add(lev_bottom_right, lev_top_left)
-
-    # 5. BARRERAS
-    # Barrera Rosa (Protege palanca arriba izq)
-    barrier_pink = Barrier(130, 200, 20, 100, color=(255, 105, 180)) 
-    
-    # Barrera Verde (Protege portal)
-    barrier_green = Barrier(1000, 450, 200, 20, color=(50, 205, 50)) 
-    
-    barriers.extend([barrier_pink, barrier_green])
-    
-    # Añadir todo a all_sprites
-    all_sprites.add(p_start, p_lila, p_violet_top, p_end, p_blue_moving, p_lev1)
     all_sprites.add(spike1, spike2, spike3)
-    all_sprites.add(lev_bottom_right, lev_top_left)
+
+    # --- 3. PALANCAS ---
+    
+    # Palanca 1 (Inferior Derecha) - EN EL PISO
+    # Esta activa el ascensor azul y quita la barrera rosa.
+    lev_floor_right = Lever(700, floor.rect.top)
+    
+    # Palanca 2 (Superior Izquierda) - ENCERRADA
+    lev_top_left = Lever(80, p_top_left.rect.top)
+
+    levers.add(lev_floor_right, lev_top_left)
+    all_sprites.add(lev_floor_right, lev_top_left)
+    
+    specific_levers["bottom_right"] = lev_floor_right
+    specific_levers["top_left"] = lev_top_left
+
+    # --- 4. BARRERAS (CAMPOS DE FUERZA) ---
+    
+    # Barrera ROSA: Encierra la palanca de arriba a la izquierda
+    # Cubo completo alrededor de p_top_left
+    barrier_pink = Barrier(40, 120, 120, 150, color=(255, 105, 180)) 
+    
+    # Barrera VERDE: Encierra el portal en el piso
+    # Cubo completo abajo a la derecha
+    barrier_green = Barrier(1080, floor.rect.top - 120, 120, 120, color=(50, 205, 50)) 
+    
+    barriers["pink"] = barrier_pink
+    barriers["green"] = barrier_green
+    
     all_sprites.add(barrier_pink, barrier_green)
 
-    # 6. CRISTALES
-    c1 = Crystal(p_start.rect.centerx, p_start.rect.top - 20)
-    c2 = Crystal(p_violet_top.rect.centerx, p_violet_top.rect.top - 20)
+    # --- 5. CRISTALES ---
+    c1 = Crystal(p_top_right.rect.centerx, p_top_right.rect.top - 20)
+    c2 = Crystal(p_lila_bridge.rect.centerx, p_lila_bridge.rect.top - 20)
     crystals.add(c1, c2)
     all_sprites.add(c1, c2)
 
-    # 7. PORTAL
-    portal = Portal(1100, p_end.rect.top + 10)
-    portal.rect.bottom = p_end.rect.top
+    # --- 6. PORTAL (EN EL PISO) ---
+    portal = Portal(1130, floor.rect.top + 10)
+    portal.rect.bottom = floor.rect.top
     all_sprites.add(portal)
 
-    player = Player(100, p_start.rect.top - 50)
+    # Jugador empieza en la plataforma de inicio
+    player = Player(80, p_start.rect.top - 50)
     all_sprites.add(player)
 
     return player, portal, None, {
         "tutorial_step": 0,
-        "popup_text": "NIVEL 3: CUIDADO CON LOS PINCHOS",
+        "popup_text": "NIVEL 3: SINCRONIZACIÓN VERTICAL",
         "show_popup": True,
         "hazards": hazards,
-        "barriers": {"pink": barrier_pink, "green": barrier_green},
-        "specific_levers": {"bottom_right": lev_bottom_right, "top_left": lev_top_left},
-        "blue_platform": p_blue_moving
+        "barriers": barriers,
+        "specific_levers": specific_levers,
+        "moving_gate": p_blue_moving, 
+        "moving_crystal": None
     }
