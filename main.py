@@ -5,59 +5,26 @@ import math
 from src.settings import *
 from src.player import Player
 from src.platform import Platform
-from src.assets import AssetManager
+from src.assets import AssetManager # Importamos la nueva clase mejorada
 from src.ui import UI
 from src.collectibles import Crystal, Portal
 
-# --- CONFIGURACIÓN DE MÚSICA ---
-# Asigna aquí los nombres exactos de tus archivos
-MUSIC_TRACKS = {
-    "menu": "assets/music/Main.mp3",
-    "level_1": "assets/music/primer_Nivel.mp3",
-    # Si no tienes musica para el nivel 2, usa la del 1
-    "level_2": "assets/music/primer_Nivel.mp3" 
-}
-
-current_track_name = None
-
-def play_bg_music(track_key):
-    """Gestiona el cambio de música inteligente"""
-    global current_track_name
-    
-    # Si la canción que pedimos ya está sonando, no hacemos nada
-    if current_track_name == track_key:
-        return
-
-    path = MUSIC_TRACKS.get(track_key)
-    if not path:
-        return
-
-    try:
-        # Hacemos un pequeño fadeout si había algo sonando
-        if pygame.mixer.music.get_busy():
-            pygame.mixer.music.fadeout(500)
-            
-        pygame.mixer.music.load(path)
-        pygame.mixer.music.set_volume(0.4)
-        pygame.mixer.music.play(-1) # Loop infinito
-        current_track_name = track_key
-        print(f"Reproduciendo: {track_key}")
-    except pygame.error as e:
-        print(f"Error cargando música ({path}): {e}")
-
 async def main():
     pygame.init()
-    pygame.mixer.init()
+    # Nota: Ya no hacemos pygame.mixer.init() aquí, lo hace el AssetManager
     
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Eco Resonancia")
     clock = pygame.time.Clock()
 
+    # --- INICIALIZACIÓN DE ASSETS ---
+    assets = AssetManager() # El gestor de audio se crea aquí
+    
     ui = UI(screen)
     game_state = MENU
     
-    # Iniciar música del menú inmediatamente
-    play_bg_music("menu")
+    # Iniciar música del menú usando el AssetManager
+    assets.play_music("menu")
 
     # Fuente HUD
     try:
@@ -94,18 +61,17 @@ async def main():
         crystals.empty()
         echoes.clear()
         
-        # --- LÓGICA DE MÚSICA POR NIVEL ---
-        # Cambiamos la música según el nivel cargado
+        # --- NUEVA LÓGICA DE MÚSICA ---
+        # Delegamos la tarea al AssetManager
         if level_id == 1:
-            play_bg_music("level_1")
+            assets.play_music("level_1")
         elif level_id == 2:
-            play_bg_music("level_2")
+            assets.play_music("level_2")
         
         if level_id == 1:
             floor = Platform(0, SCREEN_HEIGHT - 60, type="piso", width=SCREEN_WIDTH)
             p1 = Platform(250, 550, type="normal")
             p2 = Platform(600, 420, type="chica")
-            # Plataforma corregida para que el salto sea posible
             p3 = Platform(820, 350, type="normal") 
             res_plat = Platform(450, 250, width=100, is_resonance=True)
             
@@ -146,9 +112,11 @@ async def main():
                         if event.key == pygame.K_r and player:
                              if len(echoes) < MAX_ECHOES:
                                 new_echo = Player(100, SCREEN_HEIGHT - 150, is_echo=True)
+                                # Copiar grabación
                                 new_echo.recording = list(player.recording)
                                 echoes.append(new_echo)
                                 all_sprites.add(new_echo)
+                                # Reset jugador
                                 player.rect.topleft = (100, SCREEN_HEIGHT - 150)
                                 player.recording = []
                                 player.velocity = pygame.math.Vector2(0, 0)
@@ -159,16 +127,14 @@ async def main():
 
                         if event.key == pygame.K_ESCAPE:
                             game_state = MENU
-                            play_bg_music("menu") # Volver a música de menú
+                            assets.play_music("menu") # Cambio de música vía assets
                         
                         if event.key == pygame.K_p:
                              print("¡Truco activado!")
                              if current_level == max_unlocked_level:
                                 max_unlocked_level += 1
                              game_state = LEVEL_SELECT
-                             # Nota: La música cambiará a 'menu' si vamos a selección, 
-                             # o se queda la del nivel si prefieres.
-                             play_bg_music("menu")
+                             assets.play_music("menu") # Cambio de música vía assets
 
         if game_state == GAME:
             if tutorial_step == 1 and show_popup:
@@ -208,7 +174,7 @@ async def main():
                 if current_level == max_unlocked_level:
                     max_unlocked_level += 1
                 game_state = LEVEL_SELECT
-                play_bg_music("menu")
+                assets.play_music("menu") # Volver a música de menú
 
             if level_bg:
                 screen.blit(level_bg, (0,0))
@@ -248,7 +214,7 @@ async def main():
             action = ui.draw_level_select(max_unlocked_level)
             if action and action.startswith("start_game_"):
                 current_level = int(action.split("_")[-1])
-                reset_level(current_level) # Aquí dentro se llama a play_bg_music('level_X')
+                reset_level(current_level)
                 game_state = GAME
             elif action == "goto_menu": game_state = MENU
 

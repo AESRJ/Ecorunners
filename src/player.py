@@ -8,21 +8,44 @@ class Player(pygame.sprite.Sprite):
         self.animations = {}
         self.size = (50, 80) 
 
+        # --- SECCIÓN DE CARGA DE IMÁGENES MODIFICADA ---
         try:
+            # 1. Cargar las imágenes crudas necesarias
             idle_img = pygame.image.load('assets/images/player_idle.png').convert_alpha()
-            run_img = pygame.image.load('assets/images/player_run.png').convert_alpha()
             jump_img = pygame.image.load('assets/images/player_jump.png').convert_alpha()
             
-            self.animations['idle'] = pygame.transform.scale(idle_img, self.size)
-            self.animations['run'] = pygame.transform.scale(run_img, self.size)
+            # Solo cargamos run y run3 como pediste
+            run_raw1 = pygame.image.load('assets/images/player_run.png').convert_alpha()
+            # run_raw2 se ha eliminado
+            run_raw3 = pygame.image.load('assets/images/player_run3.png').convert_alpha()
+            
+            # 2. Escalar las imágenes estáticas
+            # Guardamos la referencia a la versión escalada de idle para usarla en el ciclo de correr
+            idle_scaled = pygame.transform.scale(idle_img, self.size)
+            self.animations['idle'] = idle_scaled
             self.animations['jump'] = pygame.transform.scale(jump_img, self.size)
             
+            # 3. Escalar las imágenes de carrera
+            run_scaled1 = pygame.transform.scale(run_raw1, self.size)
+            run_scaled3 = pygame.transform.scale(run_raw3, self.size)
+
+            # --- NUEVA SECUENCIA DE ANIMACIÓN ---
+            # Definimos el ciclo usando SOLAMENTE idle, run1 y run3.
+            # Ciclo: Paso 1 -> Centro (Idle) -> Paso 2 (Run3) -> Centro (Idle)
+            self.animations['run'] = [
+                run_scaled1, # Paso pie derecho
+                idle_scaled, # Punto medio (idle)
+                run_scaled3, # Paso pie izquierdo
+                idle_scaled  # Punto medio (idle)
+            ]
+            
         except FileNotFoundError:
+            # Fallback
             surf = pygame.Surface(self.size)
             surf.fill(COLOR_PLAYER)
             self.animations['idle'] = surf
-            self.animations['run'] = surf
             self.animations['jump'] = surf
+            self.animations['run'] = [surf]
 
         self.image = self.animations['idle']
         self.rect = self.image.get_rect(topleft=(x, y))
@@ -36,19 +59,30 @@ class Player(pygame.sprite.Sprite):
         self.playback_index = 0
         self.finished_playback = False
 
-        # --- NUEVO: Variables para animación fluida ---
+        # Variables para animación fluida
         self.walk_timer = 0
-        self.walk_frame = 0 # 0 = Idle, 1 = Run
+        self.walk_frame = 0 
 
         if self.is_echo:
             self.tint_images()
 
     def tint_images(self):
-        for key, img in self.animations.items():
-            mask = pygame.mask.from_surface(img)
-            echo_surf = mask.to_surface(setcolor=COLOR_ECHO, unsetcolor=(0,0,0,0))
-            echo_surf.set_alpha(150)
-            self.animations[key] = echo_surf
+        """Tiñe las imágenes (tanto individuales como listas de animación) para el Eco"""
+        for key, value in self.animations.items():
+            if isinstance(value, list):
+                tinted_list = []
+                for img in value:
+                    tinted_list.append(self.apply_tint(img))
+                self.animations[key] = tinted_list
+            else:
+                self.animations[key] = self.apply_tint(value)
+
+    def apply_tint(self, surface):
+        """Función auxiliar para aplicar el tinte a una sola superficie"""
+        mask = pygame.mask.from_surface(surface)
+        echo_surf = mask.to_surface(setcolor=COLOR_ECHO, unsetcolor=(0,0,0,0))
+        echo_surf.set_alpha(150)
+        return echo_surf
 
     def handle_input(self):
         keys = pygame.key.get_pressed()
@@ -71,23 +105,21 @@ class Player(pygame.sprite.Sprite):
         img = self.animations['idle']
 
         if not self.on_ground:
-            # Si salta, usamos la imagen de salto fija
             img = self.animations['jump']
         elif self.velocity.x != 0:
-            # --- NUEVO: LÓGICA DE CAMINATA (WALK CYCLE) ---
-            # Si se mueve en el suelo, alternamos entre IDLE y RUN cada 150ms
-            # Esto crea la ilusión de que está moviendo las piernas.
-            if current_time - self.walk_timer > 150: # Velocidad de animación
-                self.walk_frame = (self.walk_frame + 1) % 2
+            # Velocidad de animación (puedes ajustar este número si va muy rápido o lento)
+            animation_speed = 120 
+            
+            if current_time - self.walk_timer > animation_speed:
+                num_frames = len(self.animations['run'])
+                self.walk_frame = (self.walk_frame + 1) % num_frames
                 self.walk_timer = current_time
             
-            if self.walk_frame == 0:
-                img = self.animations['run'] # Paso abierto
-            else:
-                img = self.animations['idle'] # Paso cerrado (pies juntos)
+            img = self.animations['run'][self.walk_frame]
         else:
-            # Si está quieto
             img = self.animations['idle']
+            if self.walk_frame != 0:
+                 self.walk_frame = 0
 
         if not self.facing_right:
             img = pygame.transform.flip(img, True, False)
