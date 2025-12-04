@@ -14,8 +14,8 @@ from src.mechanics import Lever, Gate, Spike, Barrier
 from src.levels.level1 import load_level_1
 from src.levels.level2 import load_level_2
 from src.levels.level3 import load_level_3
-from src.levels.level4 import load_level_4 # Nuevo
-from src.levels.level5 import load_level_5 # Nuevo
+from src.levels.level4 import load_level_4
+from src.levels.level5 import load_level_5
 
 async def main():
     pygame.init()
@@ -27,9 +27,10 @@ async def main():
     assets = AssetManager()
     ui = UI(screen)
     
+    # --- ESTADO INICIAL ---
     game_state = MENU
     current_level = 1
-    max_unlocked_level = 5 # AHORA SON 5 NIVELES
+    max_unlocked_level = 5 
     
     assets.play_music("menu")
 
@@ -44,14 +45,14 @@ async def main():
     except FileNotFoundError:
         level_bg = None
 
-    # Grupos
+    # Grupos de Sprites
     all_sprites = pygame.sprite.Group()
     platforms = pygame.sprite.Group()
     crystals = pygame.sprite.Group()
     levers = pygame.sprite.Group() 
     gates = pygame.sprite.Group()  
     
-    # Variables nivel
+    # Variables de Nivel Específicas
     level_hazards = [] 
     level_barriers = {} 
     special_levers = {}
@@ -63,6 +64,7 @@ async def main():
     res_plat = None
     portal = None
 
+    # Variables de Juego Globales
     tutorial_step = 0
     show_popup = False
     popup_text = ""
@@ -70,9 +72,14 @@ async def main():
 
     def reset_level(level_id):
         nonlocal player, res_plat, portal, tutorial_step, show_popup, popup_text, moving_crystal
-        nonlocal level_hazards, level_barriers, special_levers, special_gate
+        nonlocal level_hazards, level_barriers, special_levers, special_gate, collected_fragments
         
+        # --- LIMPIEZA TOTAL ---
         echoes.clear()
+        
+        # ¡AQUÍ ESTÁ EL CAMBIO! Reiniciar ecos a 0 al empezar nivel
+        collected_fragments = 0 
+        
         level_hazards = []
         level_barriers = {}
         special_levers = {}
@@ -85,6 +92,7 @@ async def main():
         
         level_data = None
         
+        # Carga Dinámica
         if level_id == 1:
             player, portal, res_plat, level_data = load_level_1(all_sprites, platforms, crystals, levers, gates, None)
         elif level_id == 2:
@@ -96,6 +104,7 @@ async def main():
         elif level_id == 5:
             player, portal, res_plat, level_data = load_level_5(all_sprites, platforms, crystals, levers, gates, None)
             
+        # Extraer metadatos del nivel
         if level_data:
             tutorial_step = level_data.get("tutorial_step", 0)
             popup_text = level_data.get("popup_text", "")
@@ -109,9 +118,16 @@ async def main():
     running = True
     
     while running:
+        # 1. DETECCIÓN DE CLICK ÚNICO
+        click_event = False 
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1: 
+                    click_event = True
             
             if game_state == GAME:
                 if show_popup and event.type == pygame.KEYDOWN:
@@ -121,6 +137,7 @@ async def main():
                 
                 if not show_popup: 
                     if event.type == pygame.KEYDOWN:
+                        # CREAR ECO (COSTO DE FRAGMENTOS)
                         if event.key == pygame.K_z and player:
                              if len(echoes) < MAX_ECHOES and collected_fragments > 0:
                                 collected_fragments -= 1 
@@ -144,6 +161,7 @@ async def main():
                             game_state = MENU
                             assets.play_music("menu")
                         
+                        # CHEAT (Para pruebas)
                         if event.key == pygame.K_p: 
                              if current_level < max_unlocked_level: 
                                 current_level += 1
@@ -175,7 +193,7 @@ async def main():
             
             levers.update(active_entities)
             
-            # --- LÓGICA DE NIVELES ---
+            # --- LÓGICA DE NIVELES (PUZZLES) ---
             all_levers_active = True
             if len(levers) > 0:
                 for lev in levers:
@@ -197,6 +215,7 @@ async def main():
                     is_active = lev_br.activated
                     if pink_bar: pink_bar.update_state(not is_active)
                     if blue_plat:
+                        # Plataforma pegajosa
                         riders = [e for e in active_entities if abs(e.rect.bottom - blue_plat.rect.top) < 6 and e.rect.right > blue_plat.rect.left and e.rect.left < blue_plat.rect.right]
                         dy = blue_plat.update_position(should_open=is_active)
                         if dy != 0:
@@ -209,48 +228,42 @@ async def main():
                     green_bar.update_state(not both_active)
 
             # === NIVEL 4 ===
-# === NIVEL 4 (REHECHO) ===
             elif current_level == 4:
                 lev_top = special_levers.get("top")
                 lev_bot = special_levers.get("bottom")
                 elevator = special_gate
                 bar_final = level_barriers.get("final")
 
-                # Acción 1: Palanca ARRIBA mueve el Ascensor (Sticky)
                 if lev_top and elevator:
                     riders = [e for e in active_entities if abs(e.rect.bottom - elevator.rect.top) < 6 and e.rect.right > elevator.rect.left and e.rect.left < elevator.rect.right]
-                    # should_open=True -> Sube. False -> Baja.
                     dy = elevator.update_position(should_open=lev_top.activated)
                     if dy != 0:
                         for rider in riders:
                             rider.rect.y += dy
                             if dy > 0: rider.on_ground = True
                 
-                # Acción 2: Palanca ABAJO quita la barrera del portal
                 if lev_bot and bar_final:
                     bar_final.update_state(not lev_bot.activated)
+
             # === NIVEL 5 ===
             elif current_level == 5:
-                # 4 Palancas -> Barrera Central
-                # Las puertas se mueven solas (loop=True)
                 bar_center = level_barriers.get("center")
                 all_levs = special_levers.get("all", [])
                 
-                all_ok = all(l.activated for l in all_levs)
                 if bar_center:
+                    all_ok = all(l.activated for l in all_levs)
                     bar_center.update_state(not all_ok)
                 
-                # Mover plataformas (Gates loop)
+                # Mover plataformas automáticas (loop=True)
                 for gate in gates:
                     riders = [e for e in active_entities if abs(e.rect.bottom - gate.rect.top) < 6 and e.rect.right > gate.rect.left and e.rect.left < gate.rect.right]
-                    # should_open=True siempre para que el loop funcione
-                    dy = gate.update_position(should_open=True)
+                    dy = gate.update_position(should_open=True) # Siempre activas
                     if dy != 0:
                         for rider in riders:
                             rider.rect.y += dy
                             if dy > 0: rider.on_ground = True
 
-            # === OTROS NIVELES ===
+            # === OTROS NIVELES (1 y 2) ===
             else:
                 for gate in gates:
                     riders = [e for e in active_entities if abs(e.rect.bottom - gate.rect.top) < 6 and e.rect.right > gate.rect.left and e.rect.left < gate.rect.right]
@@ -260,28 +273,34 @@ async def main():
                             rider.rect.y += dy
                             if dy > 0: rider.on_ground = True
 
+            # Cristal Móvil (General)
             if moving_crystal and moving_crystal.alive():
                 target_gate = gates.sprites()[0] if gates else None
+                if current_level == 3 and special_gate: target_gate = special_gate
+                
                 if target_gate:
                     moving_crystal.rect.centerx = target_gate.rect.centerx
                     moving_crystal.rect.bottom = target_gate.rect.top - 10
 
+            # --- FÍSICAS ---
             physic_platforms = pygame.sprite.Group()
             for p in platforms: 
                 if p.active: physic_platforms.add(p)
             for g in gates:
                 physic_platforms.add(g)
-            
             for b in level_barriers.values():
                 if b.active: physic_platforms.add(b)
 
             player.update(physic_platforms, input_active=not show_popup)
             for echo in echoes: echo.update(None)
             
+            # Colisión con Pinchos
             for hazard in level_hazards:
                 if player.rect.colliderect(hazard.rect):
+                    print("¡Pinchos!")
                     reset_level(current_level)
 
+            # Caída al vacío
             if player.rect.y > SCREEN_HEIGHT + 200:
                 reset_level(current_level)
 
@@ -297,23 +316,21 @@ async def main():
                 if current_level == 1 and len(crystals) == 0:
                     portal.activate()
 
+            # Estado del Portal
             portal_open = False
             if current_level == 1:
                 if len(crystals) == 0: portal_open = True
             elif current_level == 2:
                 if all_levers_active: portal_open = True
             elif current_level == 3:
+                # Se abre si no hay barrera verde (ambas palancas)
                 lev_br = special_levers.get("bottom_right")
                 lev_tl = special_levers.get("top_left")
                 if lev_br and lev_tl and lev_br.activated and lev_tl.activated:
                     portal_open = True
             elif current_level == 4:
-                # Portal abierto siempre que no haya barrera, o al final
-                # En este caso, el portal está tras la barrera, así que "está activo"
-                # pero inaccesible.
                 portal_open = True 
             elif current_level == 5:
-                # Igual, tras la barrera
                 portal_open = True
 
             if portal_open:
@@ -331,6 +348,7 @@ async def main():
                     current_level += 1
                     reset_level(current_level)
 
+            # --- DIBUJADO ---
             if level_bg:
                 screen.blit(level_bg, (0,0))
             else:
@@ -338,6 +356,7 @@ async def main():
                 
             all_sprites.draw(screen)
             
+            # HUD
             hud_panel = pygame.Surface((350, 40))
             hud_panel.set_alpha(180)
             hud_panel.fill((0, 0, 0))
@@ -360,13 +379,14 @@ async def main():
                 pop_rect = pop_text_surf.get_rect(center=(SCREEN_WIDTH//2, 100))
                 screen.blit(pop_text_surf, pop_rect)
 
+        # --- MENÚ Y SELECCIÓN (Usando click_event) ---
         elif game_state == MENU:
-            action = ui.draw_main_menu()
+            action = ui.draw_main_menu(click_event)
             if action == "goto_select": game_state = LEVEL_SELECT
             elif action == "exit": running = False
 
         elif game_state == LEVEL_SELECT:
-            action = ui.draw_level_select(max_unlocked_level)
+            action = ui.draw_level_select(max_unlocked_level, click_event)
             if action and action.startswith("start_game_"):
                 current_level = int(action.split("_")[-1])
                 reset_level(current_level)

@@ -30,9 +30,25 @@ class Lever(pygame.sprite.Sprite):
 class Gate(pygame.sprite.Sprite):
     def __init__(self, x, y, width=100, height=20, move_y=150, color=(100, 100, 120), loop=False):
         super().__init__()
-        self.image = pygame.Surface((width, height))
-        self.image.fill(color) 
-        pygame.draw.rect(self.image, (255, 255, 255), (0,0,width,height), 2) 
+        
+        # --- CAMBIO: USAR IMAGEN 'platform.png' ---
+        try:
+            # Cargamos la textura de la plataforma
+            plat_img = pygame.image.load('assets/images/platform.png').convert_alpha()
+            # La escalamos al tamaño exacto que pide el objeto (width, height)
+            self.image = pygame.transform.scale(plat_img, (width, height))
+            
+            # Opcional: Si quieres mantener el tinte de color (ej. azul para indicar que es móvil),
+            # descomenta las siguientes 3 líneas. Si prefieres la textura original, déjalas comentadas.
+            # colored_surface = pygame.Surface(self.image.get_size()).convert_alpha()
+            # colored_surface.fill(color)
+            # self.image.blit(colored_surface, (0,0), special_flags=pygame.BLEND_MULT)
+            
+        except FileNotFoundError:
+            # Fallback si no encuentra la imagen
+            self.image = pygame.Surface((width, height))
+            self.image.fill(color) 
+            pygame.draw.rect(self.image, (255, 255, 255), (0,0,width,height), 2) 
         
         self.rect = self.image.get_rect(topleft=(x, y))
         self.initial_y = y
@@ -41,36 +57,25 @@ class Gate(pygame.sprite.Sprite):
         self.type = "gate"
         self.active = True
         
-        # --- NUEVO: Lógica de Bucle ---
+        # Lógica de Bucle
         self.loop = loop
-        self.moving_to_target = True # Dirección actual del bucle
+        self.moving_to_target = True 
 
     def update_position(self, should_open):
         dy = 0
-        
-        # Si está en modo bucle y activada
         if self.loop and should_open:
             target = self.target_y if self.moving_to_target else self.initial_y
-            
-            # Moverse hacia el objetivo actual
             if self.rect.y < target:
                 dy = self.speed
                 if self.rect.y + dy > target: dy = target - self.rect.y
             elif self.rect.y > target:
                 dy = -self.speed
                 if self.rect.y + dy < target: dy = target - self.rect.y
-            
             self.rect.y += dy
-            
-            # Si llegamos, cambiamos dirección
             if self.rect.y == target:
                 self.moving_to_target = not self.moving_to_target
-                
-        # Comportamiento normal (ir y quedarse)
         else:
-            # Si no hay señal de abrir, siempre intentar volver al inicio
             target = self.target_y if should_open else self.initial_y
-            
             if self.rect.y < target:
                 dy = self.speed
                 if self.rect.y + dy > target: dy = target - self.rect.y
@@ -79,21 +84,26 @@ class Gate(pygame.sprite.Sprite):
                 dy = -self.speed
                 if self.rect.y + dy < target: dy = target - self.rect.y
                 self.rect.y += dy
-                
         return dy
 
 class Spike(pygame.sprite.Sprite):
     def __init__(self, x, y, width=40):
         super().__init__()
         try:
-            spike_img = pygame.image.load('assets/images/pincho.png').convert_alpha()
+            # --- CAMBIO: Nombre del archivo a 'pinchos.png' ---
+            spike_img = pygame.image.load('assets/images/pinchos.png').convert_alpha()
+            # Escalamos el tile base (ej. 30x30)
             spike_tile = pygame.transform.scale(spike_img, (30, 30))
+            
             self.image = pygame.Surface((width, 30), pygame.SRCALPHA)
+            # Repetimos la imagen para cubrir el ancho
             for i in range(0, width, 30):
                 self.image.blit(spike_tile, (i, 0))
+                
         except FileNotFoundError:
             self.image = pygame.Surface((width, 30), pygame.SRCALPHA)
             pygame.draw.polygon(self.image, (255, 0, 0), [(0, 30), (width//2, 0), (width, 30)])
+        
         self.rect = self.image.get_rect(bottomleft=(x, y))
 
 class Barrier(pygame.sprite.Sprite):
