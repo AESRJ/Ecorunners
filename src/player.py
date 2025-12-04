@@ -8,39 +8,28 @@ class Player(pygame.sprite.Sprite):
         self.animations = {}
         self.size = (50, 80) 
 
-        # --- SECCIÓN DE CARGA DE IMÁGENES MODIFICADA ---
         try:
-            # 1. Cargar las imágenes crudas necesarias
             idle_img = pygame.image.load('assets/images/player_idle.png').convert_alpha()
             jump_img = pygame.image.load('assets/images/player_jump.png').convert_alpha()
             
-            # Solo cargamos run y run3 como pediste
             run_raw1 = pygame.image.load('assets/images/player_run.png').convert_alpha()
-            # run_raw2 se ha eliminado
             run_raw3 = pygame.image.load('assets/images/player_run3.png').convert_alpha()
             
-            # 2. Escalar las imágenes estáticas
-            # Guardamos la referencia a la versión escalada de idle para usarla en el ciclo de correr
             idle_scaled = pygame.transform.scale(idle_img, self.size)
             self.animations['idle'] = idle_scaled
             self.animations['jump'] = pygame.transform.scale(jump_img, self.size)
             
-            # 3. Escalar las imágenes de carrera
             run_scaled1 = pygame.transform.scale(run_raw1, self.size)
             run_scaled3 = pygame.transform.scale(run_raw3, self.size)
 
-            # --- NUEVA SECUENCIA DE ANIMACIÓN ---
-            # Definimos el ciclo usando SOLAMENTE idle, run1 y run3.
-            # Ciclo: Paso 1 -> Centro (Idle) -> Paso 2 (Run3) -> Centro (Idle)
             self.animations['run'] = [
-                run_scaled1, # Paso pie derecho
-                idle_scaled, # Punto medio (idle)
-                run_scaled3, # Paso pie izquierdo
-                idle_scaled  # Punto medio (idle)
+                run_scaled1,
+                idle_scaled,
+                run_scaled3,
+                idle_scaled
             ]
             
         except FileNotFoundError:
-            # Fallback
             surf = pygame.Surface(self.size)
             surf.fill(COLOR_PLAYER)
             self.animations['idle'] = surf
@@ -59,7 +48,6 @@ class Player(pygame.sprite.Sprite):
         self.playback_index = 0
         self.finished_playback = False
 
-        # Variables para animación fluida
         self.walk_timer = 0
         self.walk_frame = 0 
 
@@ -67,7 +55,6 @@ class Player(pygame.sprite.Sprite):
             self.tint_images()
 
     def tint_images(self):
-        """Tiñe las imágenes (tanto individuales como listas de animación) para el Eco"""
         for key, value in self.animations.items():
             if isinstance(value, list):
                 tinted_list = []
@@ -78,7 +65,6 @@ class Player(pygame.sprite.Sprite):
                 self.animations[key] = self.apply_tint(value)
 
     def apply_tint(self, surface):
-        """Función auxiliar para aplicar el tinte a una sola superficie"""
         mask = pygame.mask.from_surface(surface)
         echo_surf = mask.to_surface(setcolor=COLOR_ECHO, unsetcolor=(0,0,0,0))
         echo_surf.set_alpha(150)
@@ -107,7 +93,6 @@ class Player(pygame.sprite.Sprite):
         if not self.on_ground:
             img = self.animations['jump']
         elif self.velocity.x != 0:
-            # Velocidad de animación (puedes ajustar este número si va muy rápido o lento)
             animation_speed = 120 
             
             if current_time - self.walk_timer > animation_speed:
@@ -125,9 +110,15 @@ class Player(pygame.sprite.Sprite):
             img = pygame.transform.flip(img, True, False)
         self.image = img
 
-    def update(self, platforms):
+    # --- CAMBIO AQUÍ: input_active ---
+    def update(self, platforms, input_active=True):
         if not self.is_echo:
-            self.handle_input()
+            # Si el input está activo, leemos teclas. Si no, frenamos al personaje.
+            if input_active:
+                self.handle_input()
+            else:
+                self.velocity.x = 0
+            
             self.velocity.y += GRAVITY
             
             self.rect.x += self.velocity.x
