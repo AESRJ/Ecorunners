@@ -4,7 +4,6 @@ from src.collectibles import Crystal, Portal
 from src.player import Player
 
 def load_level_1(all_sprites, platforms, crystals, levers, gates, enemies, screen_height=SCREEN_HEIGHT, screen_width=SCREEN_WIDTH):
-    # Limpieza previa (por seguridad)
     all_sprites.empty()
     platforms.empty()
     crystals.empty()
@@ -16,10 +15,11 @@ def load_level_1(all_sprites, platforms, crystals, levers, gates, enemies, scree
     p1 = Platform(250, 550, type="normal")
     p2 = Platform(600, 420, type="chica")
     p3 = Platform(820, 350, type="normal") 
-    res_plat = Platform(450, 250, width=100, is_resonance=True)
     
-    platforms.add(floor, p1, p2, p3, res_plat)
-    all_sprites.add(floor, p1, p2, p3, res_plat)
+    # --- ELIMINADO: res_plat (El recuadro amarillo) ---
+    
+    platforms.add(floor, p1, p2, p3)
+    all_sprites.add(floor, p1, p2, p3)
     
     # 3 Cristales básicos
     c1 = Crystal(p1.rect.centerx, p1.rect.top - 20) 
@@ -34,8 +34,8 @@ def load_level_1(all_sprites, platforms, crystals, levers, gates, enemies, scree
     player = Player(100, floor.rect.top - 50)
     all_sprites.add(player)
     
-    # Retornamos el jugador, el portal y datos del tutorial
-    return player, portal, res_plat, {
+    # Retornamos None en lugar de res_plat
+    return player, portal, None, {
         "tutorial_step": 1,
         "popup_text": "SISTEMA: INICIANDO... [A/D] MOVER - [W] SALTAR",
         "show_popup": True,

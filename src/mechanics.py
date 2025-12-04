@@ -1,4 +1,5 @@
 import pygame
+import math # Necesario para la animación
 from .settings import *
 
 class Lever(pygame.sprite.Sprite):
@@ -31,21 +32,10 @@ class Gate(pygame.sprite.Sprite):
     def __init__(self, x, y, width=100, height=20, move_y=150, color=(100, 100, 120), loop=False):
         super().__init__()
         
-        # --- CAMBIO: USAR IMAGEN 'platform.png' ---
         try:
-            # Cargamos la textura de la plataforma
             plat_img = pygame.image.load('assets/images/platform.png').convert_alpha()
-            # La escalamos al tamaño exacto que pide el objeto (width, height)
             self.image = pygame.transform.scale(plat_img, (width, height))
-            
-            # Opcional: Si quieres mantener el tinte de color (ej. azul para indicar que es móvil),
-            # descomenta las siguientes 3 líneas. Si prefieres la textura original, déjalas comentadas.
-            # colored_surface = pygame.Surface(self.image.get_size()).convert_alpha()
-            # colored_surface.fill(color)
-            # self.image.blit(colored_surface, (0,0), special_flags=pygame.BLEND_MULT)
-            
         except FileNotFoundError:
-            # Fallback si no encuentra la imagen
             self.image = pygame.Surface((width, height))
             self.image.fill(color) 
             pygame.draw.rect(self.image, (255, 255, 255), (0,0,width,height), 2) 
@@ -57,7 +47,6 @@ class Gate(pygame.sprite.Sprite):
         self.type = "gate"
         self.active = True
         
-        # Lógica de Bucle
         self.loop = loop
         self.moving_to_target = True 
 
@@ -90,13 +79,10 @@ class Spike(pygame.sprite.Sprite):
     def __init__(self, x, y, width=40):
         super().__init__()
         try:
-            # --- CAMBIO: Nombre del archivo a 'pinchos.png' ---
             spike_img = pygame.image.load('assets/images/pinchos.png').convert_alpha()
-            # Escalamos el tile base (ej. 30x30)
             spike_tile = pygame.transform.scale(spike_img, (30, 30))
             
             self.image = pygame.Surface((width, 30), pygame.SRCALPHA)
-            # Repetimos la imagen para cubrir el ancho
             for i in range(0, width, 30):
                 self.image.blit(spike_tile, (i, 0))
                 
@@ -109,20 +95,39 @@ class Spike(pygame.sprite.Sprite):
 class Barrier(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height, color):
         super().__init__()
+        self.original_image = None # Guardamos la original para la animación
+        self.color = color
+        
         try:
             barrier_img = pygame.image.load('assets/images/barrera.png').convert_alpha()
-            self.image = pygame.transform.scale(barrier_img, (width, height))
-            tinted_image = self.image.copy()
-            tinted_image.fill(color, special_flags=pygame.BLEND_MULT)
-            self.image = tinted_image
-            self.image.set_alpha(200)
+            self.original_image = pygame.transform.scale(barrier_img, (width, height))
+            
+            # Aplicar color inicial
+            tinted = self.original_image.copy()
+            tinted.fill(self.color, special_flags=pygame.BLEND_MULT)
+            self.image = tinted
+            
         except FileNotFoundError:
             self.image = pygame.Surface((width, height))
             self.image.fill(color)
-            self.image.set_alpha(180)
+            self.original_image = self.image.copy()
+            
         self.rect = self.image.get_rect(topleft=(x, y))
         self.active = True
         self.original_pos = (x, y)
+
+    def update(self):
+        # --- EFECTO DE PULSACIÓN (Animación) ---
+        if self.active and self.original_image:
+            # Usamos el tiempo para crear una onda senoidal
+            # Esto hace que el valor alpha oscile entre 100 y 200
+            time = pygame.time.get_ticks()
+            alpha = 150 + int(50 * math.sin(time * 0.005)) 
+            
+            # Recreamos la imagen base para que no se degrade
+            self.image = self.original_image.copy()
+            self.image.fill(self.color, special_flags=pygame.BLEND_MULT)
+            self.image.set_alpha(alpha)
 
     def update_state(self, is_active):
         self.active = is_active

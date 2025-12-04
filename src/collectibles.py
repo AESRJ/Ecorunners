@@ -6,11 +6,13 @@ class Crystal(pygame.sprite.Sprite):
         super().__init__()
         try:
             img = pygame.image.load('assets/images/soul_fragment.png').convert_alpha()
-            # Reducimos tamaño para que sea un ítem flotante delicado
-            self.image = pygame.transform.scale(img, (24, 24))
+            # --- CAMBIO: AUMENTO DE TAMAÑO (Antes 24x24) ---
+            self.image = pygame.transform.scale(img, (40, 40))
         except FileNotFoundError:
-            self.image = pygame.Surface((20, 20), pygame.SRCALPHA)
-            pygame.draw.polygon(self.image, COLOR_RESONANCE, [(10, 0), (20, 10), (10, 20), (0, 10)])
+            # Fallback más grande también
+            self.image = pygame.Surface((40, 40), pygame.SRCALPHA)
+            # Dibujamos un rombo más grande
+            pygame.draw.polygon(self.image, COLOR_RESONANCE, [(20, 0), (40, 20), (20, 40), (0, 20)])
         
         self.rect = self.image.get_rect(center=(x, y))
 
@@ -22,17 +24,20 @@ class Portal(pygame.sprite.Sprite):
             closed = pygame.image.load('assets/images/portal_closed.png').convert_alpha()
             opened = pygame.image.load('assets/images/portal_open.png').convert_alpha()
             
-            # Hacemos el portal un poco más alto que el jugador (que mide 48)
-            # 64x90 es un buen tamaño para una puerta mística
-            self.images['closed'] = pygame.transform.scale(closed, (64, 96))
-            self.images['open'] = pygame.transform.scale(opened, (64, 96))
+            # --- CAMBIO: AUMENTO DE TAMAÑO (Antes 64x96) ---
+            # Ahora son mucho más altos y anchos
+            new_size = (100, 150)
+            
+            self.images['closed'] = pygame.transform.scale(closed, new_size)
+            self.images['open'] = pygame.transform.scale(opened, new_size)
             self.image = self.images['closed']
         except FileNotFoundError:
-            self.image = pygame.Surface((50, 90))
+            # Fallback grande
+            self.image = pygame.Surface((100, 150))
             self.image.fill((50, 50, 50))
             self.images = None
 
-        # Usamos bottomleft para colocarlo pegado al suelo fácilmente
+        # Usamos bottomleft para que crezca hacia arriba desde el suelo
         self.rect = self.image.get_rect(bottomleft=(x, y))
         self.active = False 
 
