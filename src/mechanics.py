@@ -5,7 +5,6 @@ class Lever(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.activated = False
-        
         try:
             self.image_off = pygame.image.load('assets/images/palanca.png').convert_alpha()
             self.image_on = pygame.image.load('assets/images/palanca_activada.png').convert_alpha()
@@ -16,7 +15,6 @@ class Lever(pygame.sprite.Sprite):
             self.image_off.fill((200, 50, 50)) 
             self.image_on = pygame.Surface((30, 40))
             self.image_on.fill((50, 200, 50)) 
-            
         self.image = self.image_off
         self.rect = self.image.get_rect(bottomleft=(x, y))
 
@@ -26,75 +24,92 @@ class Lever(pygame.sprite.Sprite):
             if self.rect.colliderect(entity.rect):
                 collision = True
                 break
-        
         self.activated = collision
-        if self.activated:
-            self.image = self.image_on
-        else:
-            self.image = self.image_off
+        self.image = self.image_on if self.activated else self.image_off
 
 class Gate(pygame.sprite.Sprite):
-    """Usada para plataformas móviles (ascensores)"""
-    def __init__(self, x, y, width=100, height=20, move_y=150, color=(100, 200, 255)):
+    def __init__(self, x, y, width=100, height=20, move_y=150, color=(100, 100, 120), loop=False):
         super().__init__()
         self.image = pygame.Surface((width, height))
         self.image.fill(color) 
-        pygame.draw.rect(self.image, (255, 255, 255), (0,0,width,height), 2)
+        pygame.draw.rect(self.image, (255, 255, 255), (0,0,width,height), 2) 
         
         self.rect = self.image.get_rect(topleft=(x, y))
         self.initial_y = y
-        self.target_y = y + move_y
+        self.target_y = y + move_y 
         self.speed = 2
-        self.active = True 
+        self.type = "gate"
+        self.active = True
+        
+        # --- NUEVO: Lógica de Bucle ---
+        self.loop = loop
+        self.moving_to_target = True # Dirección actual del bucle
 
     def update_position(self, should_open):
-        dy = 0 
-        if should_open:
-            if self.rect.y > self.target_y if self.target_y < self.initial_y else self.rect.y < self.target_y:
-                # Determinar dirección
-                direction = 1 if self.target_y > self.initial_y else -1
-                dy = self.speed * direction
+        dy = 0
+        
+        # Si está en modo bucle y activada
+        if self.loop and should_open:
+            target = self.target_y if self.moving_to_target else self.initial_y
+            
+            # Moverse hacia el objetivo actual
+            if self.rect.y < target:
+                dy = self.speed
+                if self.rect.y + dy > target: dy = target - self.rect.y
+            elif self.rect.y > target:
+                dy = -self.speed
+                if self.rect.y + dy < target: dy = target - self.rect.y
+            
+            self.rect.y += dy
+            
+            # Si llegamos, cambiamos dirección
+            if self.rect.y == target:
+                self.moving_to_target = not self.moving_to_target
                 
-                # Ajuste para no pasarse
-                if direction == 1 and self.rect.y + dy > self.target_y: dy = self.target_y - self.rect.y
-                if direction == -1 and self.rect.y + dy < self.target_y: dy = self.target_y - self.rect.y
-                
-                self.rect.y += dy
+        # Comportamiento normal (ir y quedarse)
         else:
-            if self.rect.y != self.initial_y:
-                direction = -1 if self.target_y > self.initial_y else 1
-                dy = self.speed * direction
-                
-                if direction == 1 and self.rect.y + dy > self.initial_y: dy = self.initial_y - self.rect.y
-                if direction == -1 and self.rect.y + dy < self.initial_y: dy = self.initial_y - self.rect.y
-                
+            # Si no hay señal de abrir, siempre intentar volver al inicio
+            target = self.target_y if should_open else self.initial_y
+            
+            if self.rect.y < target:
+                dy = self.speed
+                if self.rect.y + dy > target: dy = target - self.rect.y
                 self.rect.y += dy
+            elif self.rect.y > target:
+                dy = -self.speed
+                if self.rect.y + dy < target: dy = target - self.rect.y
+                self.rect.y += dy
+                
         return dy
-
-# --- NUEVAS CLASES ---
 
 class Spike(pygame.sprite.Sprite):
     def __init__(self, x, y, width=40):
         super().__init__()
-        # Dibujamos triángulos rojos
-        self.image = pygame.Surface((width, 30), pygame.SRCALPHA)
-        # Dibujar 3 picos
-        p1 = (0, 30); p2 = (width//6, 0); p3 = (width//3, 30)
-        p4 = (width//3, 30); p5 = (width//2, 0); p6 = (2*width//3, 30)
-        p7 = (2*width//3, 30); p8 = (5*width//6, 0); p9 = (width, 30)
-        
-        pygame.draw.polygon(self.image, (255, 0, 0), [p1, p2, p3])
-        pygame.draw.polygon(self.image, (255, 0, 0), [p4, p5, p6])
-        pygame.draw.polygon(self.image, (255, 0, 0), [p7, p8, p9])
-        
+        try:
+            spike_img = pygame.image.load('assets/images/pincho.png').convert_alpha()
+            spike_tile = pygame.transform.scale(spike_img, (30, 30))
+            self.image = pygame.Surface((width, 30), pygame.SRCALPHA)
+            for i in range(0, width, 30):
+                self.image.blit(spike_tile, (i, 0))
+        except FileNotFoundError:
+            self.image = pygame.Surface((width, 30), pygame.SRCALPHA)
+            pygame.draw.polygon(self.image, (255, 0, 0), [(0, 30), (width//2, 0), (width, 30)])
         self.rect = self.image.get_rect(bottomleft=(x, y))
 
 class Barrier(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height, color):
         super().__init__()
-        self.image = pygame.Surface((width, height))
-        self.image.fill(color)
-        self.image.set_alpha(180) # Semi transparente
+        try:
+            barrier_img = pygame.image.load('assets/images/barrera.png').convert_alpha()
+            self.image = pygame.transform.scale(barrier_img, (width, height))
+            tinted_image = self.image.copy()
+            tinted_image.fill(color, special_flags=pygame.BLEND_MULT)
+            self.image = tinted_image
+            self.image.set_alpha(200)
+        except FileNotFoundError:
+            self.image = pygame.Surface((width, height))
+            self.image.fill(color)
+            self.image.set_alpha(180)
         self.rect = self.image.get_rect(topleft=(x, y))
         self.active = True
         self.original_pos = (x, y)
@@ -102,8 +117,6 @@ class Barrier(pygame.sprite.Sprite):
     def update_state(self, is_active):
         self.active = is_active
         if self.active:
-            # Si está activa, la movemos a su lugar original
             self.rect.topleft = self.original_pos
         else:
-            # Si se desactiva, la mandamos fuera de pantalla para que no colisione
-            self.rect.x = -1000
+            self.rect.x = -2000
